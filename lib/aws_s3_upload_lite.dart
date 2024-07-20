@@ -3,6 +3,7 @@ library aws_s3_upload_lite;
 import 'dart:io';
 
 import 'package:amazon_cognito_identity_dart_2/sig_v4.dart';
+import 'package:aws_s3_upload_lite/src/upload_progress.dart';
 import 'package:flutter/foundation.dart';
 import '../enum/acl.dart';
 import '../src/utils.dart';

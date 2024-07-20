@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:aws_s3_upload_lite/src/upload_progress.dart';
 import 'package:http/http.dart' as http;
 
 class MultipartRequestWithProgress extends http.MultipartRequest {
@@ -37,17 +38,4 @@ class MultipartRequestWithProgress extends http.MultipartRequest {
 
     return byteStream;
   }
-}
-
-class UploadProgress {
-  final int bytesSent;
-  final int totalBytes;
-
-  UploadProgress(this.bytesSent, this.totalBytes);
-
-  double get progress => (bytesSent / totalBytes) * 100;
-
-  double get speed => bytesSent / ((DateTime.now().millisecondsSinceEpoch - _startTime) / 1000);
-
-  static final int _startTime = DateTime.now().millisecondsSinceEpoch;
 }
