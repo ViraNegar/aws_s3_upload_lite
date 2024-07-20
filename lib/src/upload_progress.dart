@@ -1,12 +1,16 @@
 class UploadProgress {
   final int bytesSent;
   final int totalBytes;
+  final int elapsedTime;
 
-  UploadProgress(this.bytesSent, this.totalBytes);
+  UploadProgress(this.bytesSent, this.totalBytes, this.elapsedTime);
 
   double get progress => (bytesSent / totalBytes) * 100;
 
-  double get speed => bytesSent / ((DateTime.now().millisecondsSinceEpoch - _startTime) / 1000);
+  double get speedMbps => (bytesSent * 8) / (elapsedTime / 1000) / (1024 * 1024);
 
-  static final int _startTime = DateTime.now().millisecondsSinceEpoch;
+  @override
+  String toString() {
+    return 'Progress: ${progress.toStringAsFixed(2)}%, Speed: ${speedMbps.toStringAsFixed(2)} Mbps';
+  }
 }

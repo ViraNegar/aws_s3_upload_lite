@@ -1,34 +1,38 @@
 import 'dart:async';
-import 'package:aws_s3_upload_lite/src/upload_progress.dart';
 import 'package:http/http.dart' as http;
+import 'upload_progress.dart';
 
 class MultipartRequestWithProgress extends http.MultipartRequest {
   MultipartRequestWithProgress(String method, Uri url) : super(method, url);
 
-  StreamController<UploadProgress>? _progressController;
+  final _progressController = StreamController<UploadProgress>.broadcast();
+  late int _startTime;
 
-  Stream<UploadProgress> get progressStream {
-    _progressController ??= StreamController<UploadProgress>();
-    return _progressController!.stream;
-  }
+  Stream<UploadProgress> get progressStream => _progressController.stream;
 
   @override
   http.ByteStream finalize() {
     final byteStream = super.finalize();
     final totalBytes = contentLength;
 
-    if (_progressController != null) {
+    _startTime = DateTime.now().millisecondsSinceEpoch;
+
+    if (!_progressController.hasListener) {
       int bytesSent = 0;
       Stream<List<int>> transformedStream = byteStream.transform(
         StreamTransformer.fromHandlers(
           handleData: (data, sink) {
             bytesSent += data.length;
-            final progress = UploadProgress(bytesSent, totalBytes);
-            _progressController!.add(progress);
+            final elapsedTime = DateTime.now().millisecondsSinceEpoch - _startTime;
+            final progress = UploadProgress(bytesSent, totalBytes, elapsedTime);
+            _progressController.add(progress);
             sink.add(data);
           },
+          handleError: (error, stackTrace, sink) {
+            _progressController.addError(error, stackTrace);
+          },
           handleDone: (sink) {
-            _progressController!.close();
+            _progressController.close();
             sink.close();
           },
         ),

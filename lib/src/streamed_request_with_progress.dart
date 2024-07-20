@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:http/http.dart' as http;
-
 import 'multipart_request_with_progress.dart';
 
 class StreamedRequestWithProgress extends http.BaseClient {
