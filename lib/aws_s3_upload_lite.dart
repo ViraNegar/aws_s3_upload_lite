@@ -11,11 +11,16 @@ import 'package:path/path.dart' as path;
 import 'package:recase/recase.dart';
 
 import './src/policy.dart';
+import 'src/multipart_request_with_progress.dart';
+import 'src/streamed_request_with_progress.dart';
 
 /// Convenience class for uploading files to AWS S3
 class AwsS3 {
   /// Upload a file, returning the status code 200/204 on success.
-  static Future<String> uploadFile({
+  static Future<Stream<UploadProgress>> uploadFile({
+    /// Storage endpoint
+    required String domain,
+
     /// AWS access key
     required String accessKey,
 
@@ -57,7 +62,7 @@ class AwsS3 {
     if (useSSL) {
       httpStr += 's';
     }
-    final endpoint = '$httpStr://$bucket.s3.$region.amazonaws.com';
+    final endpoint = '$httpStr://$domain/$bucket';
 
     String? uploadKey;
 
@@ -73,7 +78,7 @@ class AwsS3 {
     final length = await file.length();
 
     final uri = Uri.parse(endpoint);
-    final req = http.MultipartRequest("POST", uri);
+    final req = MultipartRequestWithProgress("POST", uri);
     final multipartFile = http.MultipartFile('file', stream, length,
         filename: path.basename(file.path));
 
@@ -93,7 +98,7 @@ class AwsS3 {
     );
 
     final signingKey =
-        SigV4.calculateSigningKey(secretKey, policy.datetime, region, 's3');
+    SigV4.calculateSigningKey(secretKey, policy.datetime, region, 's3');
     final signature = SigV4.calculateSignature(signingKey, policy.encode());
 
     req.files.add(multipartFile);
@@ -111,14 +116,9 @@ class AwsS3 {
       req.fields.addAll(metadataParams);
     }
 
-    try {
-      final res = await req.send();
-
-      return res.statusCode.toString();
-    } catch (e) {
-      print(e);
-      return 'Failed to upload to AWS, with exception:';
-    }
+    final client = StreamedRequestWithProgress(http.Client());
+    client.send(req);
+    return req.progressStream;
   }
 
   /// A method to transform the map keys into the format compliant with AWS.
@@ -142,7 +142,11 @@ class AwsS3 {
   }
 
   /// Upload a Uint8List, returning the status code 200/204 on success.
-  static Future<String> uploadUint8List({
+  static Future<Stream<UploadProgress>> uploadUint8List({
+
+    /// Storage endpoint
+    required String domain,
+
     /// AWS access key
     required String accessKey,
 
@@ -185,7 +189,7 @@ class AwsS3 {
       httpStr += 's';
     }
 
-    final endpoint = '$httpStr://$bucket.s3.$region.amazonaws.com';
+    final endpoint = '$httpStr://$domain/$bucket';
 
     String? uploadKey;
 
@@ -201,9 +205,9 @@ class AwsS3 {
     final length = file.lengthInBytes;
 
     final uri = Uri.parse(endpoint);
-    final req = http.MultipartRequest("POST", uri);
+    final req = MultipartRequestWithProgress("POST", uri);
     final multipartFile =
-        http.MultipartFile('file', stream, length, filename: filename);
+    http.MultipartFile('file', stream, length, filename: filename);
 
     // Convert metadata to AWS-compliant params before generating the policy.
     final metadataParams = _convertMetadataToParams(metadata);
@@ -221,7 +225,7 @@ class AwsS3 {
     );
 
     final signingKey =
-        SigV4.calculateSigningKey(secretKey, policy.datetime, region, 's3');
+    SigV4.calculateSigningKey(secretKey, policy.datetime, region, 's3');
     final signature = SigV4.calculateSignature(signingKey, policy.encode());
 
     req.files.add(multipartFile);
@@ -239,13 +243,8 @@ class AwsS3 {
       req.fields.addAll(metadataParams);
     }
 
-    try {
-      final res = await req.send();
-
-      return res.statusCode.toString();
-    } catch (e) {
-      print(e);
-      return 'Failed to upload to AWS, with exception:';
-    }
+    final client = StreamedRequestWithProgress(http.Client());
+    client.send(req);
+    return req.progressStream;
   }
 }
