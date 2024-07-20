@@ -1,20 +1,19 @@
 library aws_s3_upload_lite;
 
+import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:amazon_cognito_identity_dart_2/sig_v4.dart';
-import 'package:aws_s3_upload_lite/src/upload_progress.dart';
-import 'package:flutter/foundation.dart';
-import '../enum/acl.dart';
-import '../src/utils.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as path;
 import 'package:recase/recase.dart';
-
 import './src/policy.dart';
 import 'src/multipart_request_with_progress.dart';
 import 'src/streamed_request_with_progress.dart';
-
+import 'src/upload_progress.dart';
+import 'enum/acl.dart';
+import 'src/utils.dart';
 /// Convenience class for uploading files to AWS S3
 class AwsS3 {
   /// Upload a file, returning the status code 200/204 on success.
@@ -76,7 +75,7 @@ class AwsS3 {
     }
 
     final stream = http.ByteStream(Stream.castFrom(file.openRead()));
-    final length = await file.length();
+    final length = file.lengthSync();
 
     final uri = Uri.parse(endpoint);
     final req = MultipartRequestWithProgress("POST", uri);
