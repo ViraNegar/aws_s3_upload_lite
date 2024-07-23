@@ -15,6 +15,7 @@ dependencies:
   http: ^0.13.4
   path: ^1.9.0
   recase: ^4.1.0
+  dio: ^5.5.0+1
 
 dev_dependencies:
   flutter_test:
