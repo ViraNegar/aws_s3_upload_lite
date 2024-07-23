@@ -133,7 +133,7 @@ class AwsS3 {
           streamController.add(UploadProgress(sent, total, elapsed));
         },
       ).whenComplete(() async {
-        await streamController.done;
+        await streamController.close();
       });
     } catch (e) {
       streamController.addError(e);
