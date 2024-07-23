@@ -123,7 +123,6 @@ class AwsS3 {
         endpoint,
         data: formData,
         cancelToken: cancelToken,
-
         onSendProgress: (sent, total) {
           int now = DateTime
               .now()
@@ -132,8 +131,13 @@ class AwsS3 {
           lastSent = sent;
           streamController.add(UploadProgress(sent, total, elapsed));
         },
-      ).whenComplete(() async {
-        await streamController.close();
+      ).then((response) async {
+        if(response.statusCode == 200){
+          await streamController.close();
+        }else{
+          streamController.addError(response.statusCode ?? 400);
+          streamController.close();
+        }
       });
     } catch (e) {
       streamController.addError(e);
