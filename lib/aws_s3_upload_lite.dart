@@ -16,7 +16,7 @@ import 'src/utils.dart';
 /// Convenience class for uploading files to AWS S3
 class AwsS3 {
   /// Upload a file, returning the status code 200/204 on success.
-  static Stream<UploadProgress> uploadFile({
+  static Stream<Progress> uploadFile({
     /// Storage endpoint
     required String domain,
 
@@ -59,8 +59,8 @@ class AwsS3 {
 
     required CancelToken cancelToken
   }) async* {
-    final StreamController<UploadProgress> streamController =
-    StreamController<UploadProgress>();
+    final StreamController<Progress> streamController =
+    StreamController<Progress>();
     try {
       var httpStr = 'http';
       if (useSSL) {
@@ -129,7 +129,124 @@ class AwsS3 {
               .millisecondsSinceEpoch;
           int elapsed = now - startTime;
           lastSent = sent;
-          streamController.add(UploadProgress(sent, total, elapsed));
+          streamController.add(Progress(sent, total, elapsed));
+        },
+      ).then((response) async {
+        if(response.statusCode == 200){
+          await streamController.close();
+        }else{
+          streamController.addError(response.statusCode ?? 400);
+          streamController.close();
+        }
+      });
+    } catch (e) {
+      streamController.addError(e);
+      streamController.close();
+    }
+
+    yield* streamController.stream;
+  }
+
+  /// Upload a file, returning the status code 200/204 on success.
+  static Stream<Progress> downloadFile({
+    /// Storage endpoint
+    required String domain,
+
+    /// AWS access key
+    required String accessKey,
+
+    /// AWS secret key
+    required String secretKey,
+
+    /// The name of the S3 storage bucket to upload  to
+    required String bucket,
+
+    /// The file to download
+    required File file,
+
+    /// The AWS region. Must be formatted correctly, e.g. us-west-1
+    required String region,
+
+    /// The path to upload the file to (e.g. "uploads/public"). Defaults to the root "directory"
+    required String destDir,
+
+    /// The filename to upload as.
+    required String filename,
+
+    /// The content-type of file to upload. defaults to binary/octet-stream.
+    String contentType = 'binary/octet-stream',
+
+    /// If set to true, https is used instead of http. Default is true.
+    bool useSSL = true,
+
+    /// Additional metadata to be attached to the upload
+    Map<String, String>? metadata,
+
+    required CancelToken cancelToken
+  }) async* {
+    final StreamController<Progress> streamController =
+    StreamController<Progress>();
+    try {
+      var httpStr = 'http';
+      if (useSSL) {
+        httpStr += 's';
+      }
+      final endpoint = '$httpStr://$domain/$bucket';
+
+      String? uploadKey = '$filename';
+
+      final length = file.lengthSync();
+
+      final dio = Dio();
+
+      // Convert metadata to AWS-compliant params before generating the policy.
+      final metadataParams = _convertMetadataToParams(metadata);
+
+      // Generate pre-signed policy.
+      final policy = Policy.fromS3PresignedPost(
+        uploadKey,
+        bucket,
+        accessKey,
+        15,
+        length,
+        ACL.authenticated_read,
+        region: region,
+        metadata: metadataParams,
+      );
+
+      final signingKey =
+      SigV4.calculateSigningKey(secretKey, policy.datetime, region, 's3');
+      final signature = SigV4.calculateSignature(signingKey, policy.encode());
+
+      FormData formData = FormData.fromMap({
+        'key': policy.key,
+        'acl': aclToString(ACL.authenticated_read),
+        'X-Amz-Credential': policy.credential,
+        'X-Amz-Algorithm': 'AWS4-HMAC-SHA256',
+        'X-Amz-Date': policy.datetime,
+        'Policy': policy.encode(),
+        'X-Amz-Signature': signature,
+        'Content-Type': contentType,
+        'file': await MultipartFile.fromFile(
+            file.path, filename: path.basename(file.path)),
+      });
+
+      int startTime = DateTime
+          .now()
+          .millisecondsSinceEpoch;
+      int lastSent = 0;
+
+      dio.get(
+        endpoint,
+        data: formData,
+        cancelToken: cancelToken,
+        onReceiveProgress: (sent, total) {
+          int now = DateTime
+              .now()
+              .millisecondsSinceEpoch;
+          int elapsed = now - startTime;
+          lastSent = sent;
+          streamController.add(Progress(sent, total, elapsed));
         },
       ).then((response) async {
         if(response.statusCode == 200){

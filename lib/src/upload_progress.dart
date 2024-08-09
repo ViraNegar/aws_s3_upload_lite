@@ -1,9 +1,9 @@
-class UploadProgress {
+class Progress {
   final int bytesSent;
   final int totalBytes;
   final int elapsedTime;
 
-  UploadProgress(this.bytesSent, this.totalBytes, this.elapsedTime);
+  Progress(this.bytesSent, this.totalBytes, this.elapsedTime);
 
   double get progress => (bytesSent / totalBytes) * 100;
 
